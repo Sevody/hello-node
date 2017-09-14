@@ -15,8 +15,12 @@ function main(argv) {
   
   http.createServer((request, response) => {
     var urlInfo = parseURL(root, request.url)
-
-    combineFiles(urlInfo.pathnames, (err, data) => {
+    if (!urlInfo) {
+      response.writeHead(404)
+      response.end()
+      return
+    }
+    validateFiles(urlInfo.pathnames, (err, pathnames) => {
       if (err) {
         response.writeHead(404)
         response.end(err.message)
@@ -24,7 +28,7 @@ function main(argv) {
         response.writeHead(200, {
           'Content-Type': urlInfo.mime
         })
-        response.end(data)
+        outputFiles(pathnames, response)
       }
     })
   }).listen(port)
@@ -32,8 +36,13 @@ function main(argv) {
 
 function parseURL(root, url) {
   var urlArr = url.split('??'),
-      dir = urlArr[0],
-      names = urlArr[1].split(',')
+      dir = urlArr[0]
+      
+  try {
+    var names = urlArr[1].split(',')
+  } catch(err) {
+    return null
+  }
 
   var pathnames = names.map(name => path.join(root + dir + name))
   
@@ -41,6 +50,40 @@ function parseURL(root, url) {
     mime: MIME[path.extname(pathnames[0])],
     pathnames
   }
+}
+
+function validateFiles(pathnames, callback) {
+  (function next(i, len) {
+    if (i < len) {
+      fs.stat(pathnames[i], (err, status) => {
+        if (err) {
+          callback(err)
+        } else {
+          if (status.isFile()) {
+            next(i+1, len)
+          } else {
+            callback(new Error())
+          }
+        }
+      })
+    } else {
+      callback(null, pathnames)
+    }
+  })(0,pathnames.length)
+}
+
+function outputFiles(pathnames, writer) {
+  (function next(i, len) {
+    if (i < len) {
+      var reader = fs.createReadStream(pathnames[i])
+      reader.pipe(writer, {end: false})
+      reader.on('end', () => {
+        next(i+1, len)
+      })
+    } else {
+      writer.end()
+    }
+  })(0, pathnames.length)
 }
 
 function combineFiles(pathnames, callback) {
