@@ -13,7 +13,7 @@ function main(argv) {
       root = config.root
       port = config.port
   
-  http.createServer((request, response) => {
+  var server = http.createServer((request, response) => {
     var urlInfo = parseURL(root, request.url)
     if (!urlInfo) {
       response.writeHead(404)
@@ -32,19 +32,24 @@ function main(argv) {
       }
     })
   }).listen(port)
+  process.on('SIGTERM', function() {
+    server.close(function () {
+      process.exit(0)
+    })
+  })
 }
 
 function parseURL(root, url) {
   var urlArr = url.split('??'),
       dir = urlArr[0]
-      
+
   try {
     var names = urlArr[1].split(',')
   } catch(err) {
     return null
   }
 
-  var pathnames = names.map(name => path.join(root + dir + name))
+  var pathnames = names.map(name => path.join(root, dir, name))
   
   return {
     mime: MIME[path.extname(pathnames[0])],

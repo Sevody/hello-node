@@ -5,7 +5,7 @@
         "type": "node",
         "request": "launch",
         "name": "Launch Program",
-        "program": "${workspaceRoot}/example/server.js",
+        "program": "${workspaceRoot}/example/daemon.js",
         "args": "./config.json"
       },
       {
